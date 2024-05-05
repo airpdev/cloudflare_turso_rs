@@ -12,5 +12,4 @@ async fn main(req: Request, env: Env, ctx: Context) -> Result<Response> {
     // conn.execute("SELECT * FROM members", ()).await?;
 
     Response::ok("Hello, World!")
-
 }
