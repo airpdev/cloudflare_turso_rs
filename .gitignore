@@ -1,4 +1,4 @@
-/build
-/node_modules
-/target
-.env
+/demo/build
+/demo/node_modules
+/demo/target
+/demo/.dev.vars
