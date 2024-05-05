@@ -7,8 +7,8 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-worker = "0.0.18"
-libsql = { version = "0.3.5", features = ["cloudflare", "encryption"] }
+worker = "0.2.0"
+libsql = { version = "0.3.5", default-features = false, features = ["cloudflare", "encryption"] }
 
 [profile.release]
 opt-level = "s" # optimize for size in release builds
@@ -16,4 +16,7 @@ lto = true
 strip = true
 codegen-units = 1
 
-
+[patch.crates-io]
+libsql = { git = "https://github.com/spigaz/libsql.git" }
+libsql-ffi = { git = "https://github.com/spigaz/libsql.git" }
+libsql-sys = { git = "https://github.com/spigaz/libsql.git" }
