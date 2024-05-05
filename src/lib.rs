@@ -1,15 +1,15 @@
 use worker::*;
-use libsql::Builder;
-use std::env;
 
 #[event(fetch)]
-async fn main(req: Request, env: Env, ctx: Context) -> Result<Response> {
-    let url = env::var("TURSO_DATABASE_URL").expect("LIBSQL_URL must be set");
-    let token = env::var("TURSO_AUTH_TOKEN").unwrap_or_default();
+async fn main(_req: Request, env: Env, _ctx: Context) -> Result<Response> {
+    #[allow(deprecated)]
+    // Uses secrets "LIBSQL_CLIENT_URL" and "LIBSQL_CLIENT_TOKEN"
+    let client = libsql_client::Client::from_workers_env(&env).unwrap();
 
-    let db = Builder::new_remote(&url, &token).build().await.unwrap();
-    let conn = db.connect().unwrap();
-    conn.execute("SELECT * FROM members", ()).await?;
+    #[allow(deprecated)]
+    client.execute("SELECT * FROM members").await.unwrap();
 
     Response::ok("Hello, World!")
 }
+
+
