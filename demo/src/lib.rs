@@ -1,48 +1,19 @@
-use axum::{
-    http::StatusCode,
-    response::IntoResponse,
-    routing::{get, post},
-    Extension, Json, Router,
-};
-
 #[allow(deprecated)]
 use libsql_client::{Client, Statement};
+
 use serde::{Deserialize, Serialize};
-use tower_service::Service;
 use worker::*;
 
-fn router(env: Env) -> Router {
-    Router::new()
-        // `GET /` goes to `root`
-        .route("/", get(root))
-        // `GET /todos` goes to `create_todo`
-        .route("/todos", get(get_todos))
-        // `POST /todos` goes to `create_todo`
-        .route("/todos", post(create_todo))
-        .layer(Extension(env))
+#[derive(Debug, Deserialize, Serialize)]
+struct GenericResponse {
+    status: u16,
+    message: String,
 }
 
-#[event(fetch)]
-async fn fetch(
-    req: HttpRequest,
-    env: Env,
-    _ctx: Context,
-) -> Result<axum::http::Response<axum::body::Body>> {
-    console_error_panic_hook::set_once();
-
-    let conn = connection(&env).await;
-
-    #[allow(deprecated)]
-    let _ = conn
-        .execute("CREATE TABLE IF NOT EXISTS todos(task varchar non null)")
-        .await;
-
-    Ok(router(env).call(req).await?)
-}
-
-// basic handler that responds with a static string
-async fn root() -> &'static str {
-    "Hello, Axum! ❤︎ Turso"
+// the struct for a todo item
+#[derive(Deserialize, Serialize, Debug)]
+struct Todo {
+    task: String,
 }
 
 // Initializes a database connection
@@ -53,20 +24,78 @@ async fn connection(env: &Env) -> Client {
     Client::from_workers_env(env).unwrap()
 }
 
-// Gets all tasks from the todo table
-#[worker::send]
-async fn get_todos(Extension(env): Extension<Env>) -> impl IntoResponse {
+#[event(fetch)]
+async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     let conn = connection(&env).await;
 
     #[allow(deprecated)]
-    let results = conn.execute("SELECT * FROM todos").await;
+    let _ = conn
+        .execute("CREATE TABLE IF NOT EXISTS todolist(task varchar non null)")
+        .await;
+
+    Router::new()
+        .get_async("/todos", handle_get)
+        .post_async("/todos", handle_post)
+        .delete_async("/todos", handle_delete)
+        .run(req, env)
+        .await
+}
+
+#[worker::send]
+pub async fn handle_post(mut req: Request, _ctx: RouteContext<()>) -> worker::Result<Response> {
+    let todo: Todo = match req.json::<Todo>().await {
+        Ok(todo) => todo,
+        Err(_err) => {
+            return Response::from_json(&GenericResponse {
+                status: 500,
+                message: "Failed to serialize".to_string(),
+            });
+        }
+    };
+
+    let conn = connection(&_ctx.env).await;
+
+    #[allow(deprecated)]
+    let resp = conn
+        .execute(Statement::with_args(
+            "INSERT into todolist values (?1)",
+            &[todo.task.clone()],
+        ))
+        .await;
+
+    match resp {
+        #[allow(deprecated)]
+        Ok(_) => Response::from_json(&GenericResponse {
+                    status: 200,
+                    message: serde_json::to_string(&todo)?,
+                 }) ,
+        Err(error) => {
+            console_log!(":{:?}", error);
+            Response::from_json(&GenericResponse {
+                status: 500,
+                message: serde_json::to_string(&todo)?,
+            })
+        }
+    }
+
+}
+
+#[worker::send]
+pub async fn handle_get(_req: Request, _ctx: RouteContext<()>) -> worker::Result<Response> {
+    let conn = connection(&_ctx.env).await;
+
+    #[allow(deprecated)]
+    let results = conn.execute("SELECT * FROM todolist").await;
 
     let results = match results {
         #[allow(deprecated)]
         Ok(results) => results.rows,
         Err(error) => {
             console_log!(":{:?}", error);
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(Vec::<Todo>::new()));
+            return Response::from_json(&GenericResponse {
+                status: 500,
+                message: serde_json::to_string(&Vec::<Todo>::new())?,
+            });
         }
     };
 
@@ -80,45 +109,44 @@ async fn get_todos(Extension(env): Extension<Env>) -> impl IntoResponse {
         todos.push(todo);
     }
 
-    (StatusCode::OK, Json(todos))
+    Response::from_json(&GenericResponse {
+        status: 200,
+        message: serde_json::to_string(&todos)?
+    })
 }
 
-// Creates a new task in the todo table
 #[worker::send]
-async fn create_todo(
-    Extension(env): Extension<Env>,
-    Json(payload): Json<CreateTodo>,
-) -> impl IntoResponse {
-    let todo = Todo { task: payload.task };
-
-    let conn = connection(&env).await;
+pub async fn handle_delete(mut req: Request, _ctx: RouteContext<()>) -> worker::Result<Response> {
+    let todo: Todo = match req.json::<Todo>().await {
+        Ok(todo) => todo,
+        Err(_err) => {
+            return Response::from_json(&GenericResponse {
+                status: 500,
+                message: "Failed to serialize".to_string(),
+            });
+        }
+    };
+    let conn = connection(&_ctx.env).await;
 
     #[allow(deprecated)]
-    let resp = conn
-        .execute(Statement::with_args(
-            "INSERT into todos values (?1)",
-            &[todo.task.clone()],
-        ))
-        .await;
+    let resp = conn.execute(Statement::with_args(
+                    "DELETE FROM todolist WHERE task = (?1)",
+                    &[todo.task.clone()],
+                ))
+                .await;
 
     match resp {
         #[allow(deprecated)]
-        Ok(_) => (StatusCode::CREATED, Json(todo)),
+        Ok(_) => Response::from_json(&GenericResponse {
+                    status: 200,
+                    message: serde_json::to_string_pretty(&todo)?,
+                    }) ,
         Err(error) => {
             console_log!(":{:?}", error);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(todo))
+            Response::from_json(&GenericResponse {
+                status: 500,
+                message: "Failed to serialize".to_string(),
+            })
         }
     }
-}
-
-// the struct for a todo item
-#[derive(Serialize)]
-struct Todo {
-    task: String,
-}
-
-// the input to the create_todos handler
-#[derive(Deserialize, Serialize, Debug)]
-struct CreateTodo {
-    task: String,
 }
