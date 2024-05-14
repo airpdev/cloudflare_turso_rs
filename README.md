@@ -1,16 +1,11 @@
-# workers-rs-axum-tursodb
+# workers-rs-tursodb
 
 Updated from the example
-https://github.com/tursodatabase/examples/tree/master/app-todo-axum
+https://github.com/cloudflare/workers-rs
 
-And using / adapter with
-https://github.com/tursodatabase/libsql-client-rs?tab=readme-ov-file#cloudflare-workers
+# Todo List
 
-Tested
-
-# Axum Todo List
-
-A todo list example featuring [Turso](https://turso.tech) and [Axum](https://github.com/tokio-rs/axum).
+A todo list example featuring [Turso](https://turso.tech) and [Cloudflare worker](https://github.com/cloudflare/workers-rs).
 
 ## Development
 
