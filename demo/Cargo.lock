@@ -103,6 +103,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "cloudflare-worker-rs-turso"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "http",
+ "libsql-client",
+ "serde",
+ "serde_json",
+ "worker",
+ "worker-macros",
+]
+
+[[package]]
 name = "console_error_panic_hook"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -907,17 +920,4 @@ dependencies = [
  "js-sys",
  "wasm-bindgen",
  "web-sys",
-]
-
-[[package]]
-name = "workers-rs-axum-tursodb"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook",
- "http",
- "libsql-client",
- "serde",
- "serde_json",
- "worker",
- "worker-macros",
 ]

@@ -1,4 +1,4 @@
-name = "workers-rs-axum-tursodb"
+name = "cloudflare-worker-rs-turso"
 main = "build/worker/shim.mjs"
 compatibility_date = "2024-05-05"
 

@@ -52,3 +52,11 @@ Get the list of added tasks:
 ```sh
 curl "http://localhost:8787/todos"
 ```
+
+```sh
+npx wrangler deploy
+```
+
+```sh
+curl https://cloudflare-worker-rs-turso.petar-vasilev0727.workers.dev/todos
+```
